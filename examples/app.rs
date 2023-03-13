@@ -25,7 +25,7 @@ struct MyPrinter<'app> {
 impl<'app> MyPrinter<'app> {
     fn add(&mut self, symbol: Symbol<'app>) {
         self.symbols.push(symbol);
-        self.strings.push(symbol.string());
+        self.strings.push(symbol.str());
     }
 
     fn print_symbols(&self) {

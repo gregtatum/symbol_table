@@ -3,9 +3,9 @@
 A fast and efficient symbol table for making it easy to work cheaply with strings.
 
 Stores a unique list of strings, so that strings can be operated upon via stable
-indexes, which are stored in the [`Symbol`] type. This makes for cheap comparisons
-and easy storage of references to strings. The strings are accessed as [`Symbol`]s
-that have a `string() -> &str`.
+indexes, which are stored in the `Symbol` type. This makes for cheap comparisons
+and easy storage of references to strings. The strings are accessed as `Symbol`s
+that have a `fn str() -> &str`.
 
 ```rs
 use gregtatum_symbol_table::SymbolTable;
@@ -17,7 +17,7 @@ let hello_symbol = symbol_table.get("hello");
 let world_symbol = symbol_table.get("world");
 
 // Strings can easily be accessed.
-assert_eq!(hello_symbol.string(), String::from("hello"));
+assert_eq!(hello_symbol.str(), String::from("hello"));
 ```
 
 String can be accessed via various convenient traits:

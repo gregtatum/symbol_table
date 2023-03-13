@@ -3,7 +3,7 @@
 //! Stores a unique list of strings, so that strings can be operated upon via stable
 //! indexes, which are stored in the [`Symbol`] type. This makes for cheap comparisons
 //! and easy storage of references to strings. The strings are accessed as [`Symbol`]s
-//! that have a `string() -> &str`.
+//! that have a [`fn str() -> &str`](struct.Symbol.html#method.str).
 
 use std::fmt;
 use std::marker::PhantomData;
@@ -15,6 +15,16 @@ use fxhash::FxBuildHasher;
 /// A cheap reference to a [`String`] in the [`SymbolTable`]. The only lifetime constraint
 /// is that it must outlive the StringTable. This makes it easy to operate on strings
 /// and store references to pieces of them.
+/// ```
+/// use gregtatum_symbol_table::SymbolTable;
+///
+/// let symbol_table = SymbolTable::new();
+/// let hello = symbol_table.get("hello");
+/// assert_eq!(hello, "hello");
+///
+/// let hello_str: &str = hello.str();
+/// let hello_string: String = hello.to_string();
+/// ```
 #[derive(Copy, Clone)]
 pub struct Symbol<'strings> {
     index: usize,
@@ -23,18 +33,6 @@ pub struct Symbol<'strings> {
 }
 
 impl<'strings> Symbol<'strings> {
-    /// An internal function to create a new Symbol. This is only used via the
-    /// [`SymbolTable`] `get` method.
-    /// ```
-    /// use gregtatum_symbol_table::SymbolTable;
-    ///
-    /// let symbol_table = SymbolTable::new();
-    /// let hello = symbol_table.get("hello");
-    /// assert_eq!(hello, "hello");
-    ///
-    /// let hello_str: &str = hello.string();
-    /// let hello_string: String = hello.to_string();
-    /// ```
     fn new(symbol_table: &'strings SymbolTable, index: usize) -> Symbol<'strings> {
         Symbol {
             index,
@@ -53,8 +51,8 @@ impl<'strings> Symbol<'strings> {
     /// let symbol_table = SymbolTable::new();
     /// let hello_symbol = symbol_table.get("hello");
     ///
-    /// // The direct `.string()` way of accessing.
-    /// assert_eq!(hello_symbol.string(), String::from("hello"));
+    /// // The direct `.str()` way of accessing.
+    /// assert_eq!(hello_symbol.str(), "hello");
     ///
     /// // The string can also be accessed via the following traits:
     ///
@@ -67,8 +65,8 @@ impl<'strings> Symbol<'strings> {
     /// let hello_string: String = format!("{}", hello_symbol);
     /// assert_eq!(hello_string, "hello");
     /// ```
-    pub fn string(&self) -> &'strings str {
-        let string = self.symbol_table.string(self.index);
+    pub fn str(&self) -> &'strings str {
+        let string = self.symbol_table.str(self.index);
         if let Some(ref range) = self.range {
             string
                 .get(range.0 as usize..range.1 as usize)
@@ -82,7 +80,7 @@ impl<'strings> Symbol<'strings> {
 
     /// Gets a slice of a string. This is a fast way to get substrings, but can
     /// incur penalties for string equality. A slice can be converted into a full
-    /// symbol by running `deslice`.
+    /// symbol by running [`deslice`](struct.Symbol.html#method.deslice).
     ///
     /// ```
     /// use gregtatum_symbol_table::SymbolTable;
@@ -109,7 +107,7 @@ impl<'strings> Symbol<'strings> {
         };
 
         // Get the original string.
-        let string = self.symbol_table.string(self.index);
+        let string = self.symbol_table.str(self.index);
 
         string.get(range.clone()).map(|_| Symbol {
             index: self.index,
@@ -137,7 +135,7 @@ impl<'strings> Symbol<'strings> {
     /// ```
     pub fn deslice(self) -> Symbol<'strings> {
         if self.range.is_some() {
-            self.symbol_table.get(self.string())
+            self.symbol_table.get(self.str())
         } else {
             self
         }
@@ -146,13 +144,13 @@ impl<'strings> Symbol<'strings> {
 
 impl<'strings> PartialEq<String> for Symbol<'strings> {
     fn eq(&self, other: &String) -> bool {
-        self.string() == other
+        self.str() == other
     }
 }
 
 impl<'strings> PartialEq<&str> for Symbol<'strings> {
     fn eq(&self, other: &&str) -> bool {
-        self.string() == *other
+        self.str() == *other
     }
 }
 
@@ -165,38 +163,38 @@ impl<'strings> PartialEq for Symbol<'strings> {
             }
             // Even though the indexes match, the subranges could point to equivalent
             // strings. This requires a full string comparison.
-            return self.string() == other.string();
+            return self.str() == other.str();
         }
         if self.range.is_none() && other.range.is_none() {
             // The is no slice range, and the indexes differ, so they must be different.
             return false;
         }
         // Do a full string comparison.
-        self.string() == other.string()
+        self.str() == other.str()
     }
 }
 
 impl<'strings> fmt::Display for Symbol<'strings> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.string())
+        write!(f, "{}", self.str())
     }
 }
 
 impl<'strings> fmt::Debug for Symbol<'strings> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.string())
+        write!(f, "{:?}", self.str())
     }
 }
 
 impl<'strings> AsRef<str> for Symbol<'strings> {
     fn as_ref(&self) -> &str {
-        self.string()
+        self.str()
     }
 }
 
 impl<'strings> From<Symbol<'strings>> for String {
     fn from(other: Symbol<'strings>) -> Self {
-        other.string().into()
+        other.str().into()
     }
 }
 
@@ -206,7 +204,7 @@ pub type SymbolIndex = usize;
 /// Stores a unique list of strings, so that strings can be operated upon via stable
 /// indexes, which are stored in the [`Symbol`] type. This makes for cheap comparisons
 /// and easy storage of references to strings. The strings are accessed as [`Symbol`]s
-/// that have a `fn string() -> &str` method.
+/// that have a [`fn str() -> &str`](struct.Symbol.html#method.str) method.
 ///
 /// ```
 /// use gregtatum_symbol_table::SymbolTable;
@@ -241,13 +239,79 @@ pub struct SymbolTable<'strings> {
 
 impl<'strings> SymbolTable<'strings> {
     /// Create a new SymbolTable.
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello = symbol_table.get("hello");
+    /// let world = symbol_table.get("world");
+    /// ```
     pub fn new() -> SymbolTable<'strings> {
         SymbolTable {
             ..Default::default()
         }
     }
 
-    /// Lookup the amount of symbols.
+    /// Interns a string into the [`SymbolTable`] if it doesn't yet exists and returns a
+    /// [`Symbol`]. If the [`String`] has already been interned, then its index is looked
+    /// up via a HashMap and a [`Symbol`] is returned.
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello = symbol_table.get("hello");
+    /// let world = symbol_table.get("world");
+    /// assert_eq!(hello, "hello");
+    /// assert_eq!(world, "world");
+    /// ```
+    pub fn get<T: Into<String> + AsRef<str>>(&'strings self, string: T) -> Symbol<'strings> {
+        if let Some(symbol) = self.maybe_get(string.as_ref()) {
+            return symbol;
+        }
+        let index = self.len();
+        let string: String = string.into();
+        self.symbols.push(string.clone());
+        self.indexes.insert(string, Box::new(index));
+        Symbol::new(&self, index)
+    }
+
+    /// Gets an [`Symbol`] for a string only if it already exists.
+    ///
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    ///
+    /// // Insert "hello"
+    /// symbol_table.get("hello");
+    ///
+    /// let hello = symbol_table.maybe_get("hello");
+    /// let world = symbol_table.maybe_get("world");
+    /// assert_eq!(hello.unwrap(), "hello");
+    /// assert_eq!(world, None);
+    /// ```
+    pub fn maybe_get<T: AsRef<str>>(&'strings self, string: T) -> Option<Symbol<'strings>> {
+        self.indexes
+            .get(string.as_ref())
+            .map(|index| Symbol::new(&self, *index))
+    }
+
+    /// Check if the `SymbolTable` has a string.
+    ///
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello = symbol_table.get("hello");
+    /// assert!(symbol_table.has("hello"));
+    /// assert!(!symbol_table.has("world"));
+    /// ```
+    pub fn has<T: AsRef<str>>(&'strings self, string: T) -> bool {
+        self.maybe_get(string).is_some()
+    }
+
+    /// Get the amount of strings (not symbols) in the SymbolTable. Symbols can be
+    /// created that are slices of strings. These are not counted as strings.
     ///
     /// ```
     /// use gregtatum_symbol_table::SymbolTable;
@@ -296,65 +360,7 @@ impl<'strings> SymbolTable<'strings> {
         self.symbols.iter()
     }
 
-    /// Interns a string into the [`SymbolTable`] if it doesn't yet exists and returns a
-    /// [`Symbol`]. If the [`String`] has already been interned, then its index is looked
-    /// up via a HashMap and a [`Symbol`] is returned.
-    /// ```
-    /// use gregtatum_symbol_table::SymbolTable;
-    ///
-    /// let symbol_table = SymbolTable::new();
-    /// let hello = symbol_table.get("hello");
-    /// let world = symbol_table.get("world");
-    /// assert_eq!(hello, "hello");
-    /// assert_eq!(world, "world");
-    /// ```
-    pub fn get<T: Into<String> + AsRef<str>>(&'strings self, string: T) -> Symbol<'strings> {
-        if let Some(symbol) = self.maybe_get(string.as_ref()) {
-            return symbol;
-        }
-        let index = self.len();
-        let string: String = string.into();
-        self.symbols.push(string.clone());
-        self.indexes.insert(string, Box::new(index));
-        Symbol::new(&self, index)
-    }
-
-    /// Check if the `SymbolTable` has a string.
-    ///
-    /// ```
-    /// use gregtatum_symbol_table::SymbolTable;
-    ///
-    /// let symbol_table = SymbolTable::new();
-    /// let hello = symbol_table.get("hello");
-    /// assert!(symbol_table.has("hello"));
-    /// assert!(!symbol_table.has("world"));
-    /// ```
-    pub fn has<T: AsRef<str>>(&'strings self, string: T) -> bool {
-        self.maybe_get(string).is_some()
-    }
-
-    /// Gets an [`Symbol`] for a string only if it already exists.
-    ///
-    /// ```
-    /// use gregtatum_symbol_table::SymbolTable;
-    ///
-    /// let symbol_table = SymbolTable::new();
-    ///
-    /// // Insert "hello"
-    /// symbol_table.get("hello");
-    ///
-    /// let hello = symbol_table.maybe_get("hello");
-    /// let world = symbol_table.maybe_get("world");
-    /// assert_eq!(hello.unwrap(), "hello");
-    /// assert_eq!(world, None);
-    /// ```
-    pub fn maybe_get<T: AsRef<str>>(&'strings self, string: T) -> Option<Symbol<'strings>> {
-        self.indexes
-            .get(string.as_ref())
-            .map(|index| Symbol::new(&self, *index))
-    }
-
-    fn string(&self, index: SymbolIndex) -> &str {
+    fn str(&self, index: SymbolIndex) -> &str {
         match self.symbols.get(index) {
             Some(string) => string,
             None => "",
