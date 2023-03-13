@@ -1,7 +1,8 @@
 [package]
-name = "gregtatum-symbol-table"
+name = "gregtatum_symbol_table"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 fxhash = "0.2"
