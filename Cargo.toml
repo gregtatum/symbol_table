@@ -1,0 +1,8 @@
+[package]
+name = "gregtatum-symbol-table"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fxhash = "0.2"
+elsa = "1.8"
