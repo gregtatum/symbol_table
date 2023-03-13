@@ -1,3 +1,10 @@
+//! A fast and efficient symbol table for making it easy to work cheaply with strings.
+//!
+//! Stores a unique list of strings, so that strings can be operated upon via stable
+//! indexes, which are stored in the [`Symbol`] type. This makes for cheap comparisons
+//! and easy storage of references to strings. The strings are accessed as [`Symbol`]s
+//! that have a `string() -> &str`.
+
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Range;
@@ -18,6 +25,16 @@ pub struct Symbol<'strings> {
 impl<'strings> Symbol<'strings> {
     /// An internal function to create a new Symbol. This is only used via the
     /// [`SymbolTable`] `get` method.
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello = symbol_table.get("hello");
+    /// assert_eq!(hello, "hello");
+    ///
+    /// let hello_str: &str = hello.string();
+    /// let hello_string: String = hello.to_string();
+    /// ```
     fn new(symbol_table: &'strings SymbolTable, index: usize) -> Symbol<'strings> {
         Symbol {
             index,
@@ -29,6 +46,27 @@ impl<'strings> Symbol<'strings> {
     /// Returns a reference to a string. It will be bound by the lifetime of the
     /// [`SymbolTable`]. Symbols can also be substrings, which returns a reference
     /// to the substring in the [`SymbolTable`].
+    ///
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello_symbol = symbol_table.get("hello");
+    ///
+    /// // The direct `.string()` way of accessing.
+    /// assert_eq!(hello_symbol.string(), String::from("hello"));
+    ///
+    /// // The string can also be accessed via the following traits:
+    ///
+    /// let hello_string: String = hello_symbol.into();
+    /// assert_eq!(hello_string, "hello");
+    ///
+    /// let hello_string: &str = hello_symbol.as_ref();
+    /// assert_eq!(hello_string, "hello");
+    ///
+    /// let hello_string: String = format!("{}", hello_symbol);
+    /// assert_eq!(hello_string, "hello");
+    /// ```
     pub fn string(&self) -> &'strings str {
         let string = self.symbol_table.string(self.index);
         if let Some(ref range) = self.range {
@@ -45,6 +83,17 @@ impl<'strings> Symbol<'strings> {
     /// Gets a slice of a string. This is a fast way to get substrings, but can
     /// incur penalties for string equality. A slice can be converted into a full
     /// symbol by running `deslice`.
+    ///
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello_world = symbol_table.get("hello world");
+    ///
+    /// // Slices can easily be created.
+    /// let hello_slice = hello_world.slice(0..5).unwrap();
+    /// assert_eq!(hello_slice, "hello");
+    /// ```
     pub fn slice(&self, range: Range<usize>) -> Option<Symbol> {
         let range = match self.range {
             Some(ref existing_range) => {
@@ -71,6 +120,21 @@ impl<'strings> Symbol<'strings> {
 
     /// Turns a string slice into a full symbol. This ensures equality checks are
     /// simple index equality checks rather than full string equality checks.
+    ///
+    /// ```
+    /// use gregtatum_symbol_table::SymbolTable;
+    ///
+    /// let symbol_table = SymbolTable::new();
+    /// let hello = symbol_table.get("hello");
+    /// let hello_world = symbol_table.get("hello world");
+    ///
+    /// // Slices can easily be created, but string comparison is now a full comparison.
+    /// let hello_slice = hello_world.slice(0..5).unwrap();
+    /// assert_eq!(hello_slice, hello);
+    ///
+    /// // But slices can be turned back into full Symbols for cheap comparisons.
+    /// assert_eq!(hello_slice.deslice(), hello);
+    /// ```
     pub fn deslice(self) -> Symbol<'strings> {
         if self.range.is_some() {
             self.symbol_table.get(self.string())
@@ -142,7 +206,7 @@ pub type SymbolIndex = usize;
 /// Stores a unique list of strings, so that strings can be operated upon via stable
 /// indexes, which are stored in the [`Symbol`] type. This makes for cheap comparisons
 /// and easy storage of references to strings. The strings are accessed as [`Symbol`]s
-/// that have a `string() -> &str`.
+/// that have a `fn string() -> &str` method.
 ///
 /// ```
 /// use gregtatum_symbol_table::SymbolTable;
@@ -290,29 +354,6 @@ impl<'strings> SymbolTable<'strings> {
             .map(|index| Symbol::new(&self, *index))
     }
 
-    /// Returns a [`&str`] that references a symbol in the [`SymbolTable`]. The [`Symbol`]
-    /// also implements the `AsRef<str>` and `Into<String>` traits.
-    ///
-    /// ```
-    /// use gregtatum_symbol_table::SymbolTable;
-    ///
-    /// let symbol_table = SymbolTable::new();
-    /// let hello_symbol = symbol_table.get("hello");
-    ///
-    /// // The direct `.string()` way of accessing.
-    /// assert_eq!(hello_symbol.string(), String::from("hello"));
-    ///
-    /// // The string can also be accessed via the following traits:
-    ///
-    /// let hello_string: String = hello_symbol.into();
-    /// assert_eq!(hello_string, "hello");
-    ///
-    /// let hello_string: &str = hello_symbol.as_ref();
-    /// assert_eq!(hello_string, "hello");
-    ///
-    /// let hello_string: String = format!("{}", hello_symbol);
-    /// assert_eq!(hello_string, "hello");
-    /// ```
     fn string(&self, index: SymbolIndex) -> &str {
         match self.symbols.get(index) {
             Some(string) => string,

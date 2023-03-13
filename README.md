@@ -1,6 +1,6 @@
 # gregtatum_symbol_table
 
-A fast and efficient symbol table for making it easy to work cheapy with strings.
+A fast and efficient symbol table for making it easy to work cheaply with strings.
 
 Stores a unique list of strings, so that strings can be operated upon via stable
 indexes, which are stored in the [`Symbol`] type. This makes for cheap comparisons
