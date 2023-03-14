@@ -3,6 +3,11 @@ name = "gregtatum_symbol_table"
 version = "1.0.0"
 edition = "2021"
 license = "MIT"
+author = "Greg Tatum"
+description = "A fast and efficient symbol table for making it easy to work cheaply with strings."
+repository = "https://github.com/gregtatum/symbol_table"
+readme = "README.md"
+keywords = ["strings"]
 
 [dependencies]
 fxhash = "0.2"
